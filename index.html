@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv8 Smoke & Fire Detection</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #ffffff;
+            --border-color: #333333;
+            --primary-color: #4a90e2;
+            --primary-hover: #357abd;
+            --error-color: #e74c3c;
+            --success-color: #2ecc71;
+            --smoke-color: #800080; /* Purple */
+            --fire-color: #ffa500; /* Orange */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #aaaaaa;
+            margin-bottom: 2rem;
+        }
+
+        .upload-container {
+            background-color: var(--container-bg);
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+            position: relative;
+        }
+
+        .upload-container.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 1rem;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn:disabled {
+            background-color: #555555;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background-color: var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #aaaaaa;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .results-container {
+            width: 100%;
+            max-width: 1000px;
+            margin-top: 3rem;
+            display: none;
+        }
+
+        .videos-wrapper {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .videos-wrapper {
+                flex-direction: column;
+            }
+        }
+
+        .video-box {
+            flex: 1;
+            background-color: var(--container-bg);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .video-box h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 8px;
+            background-color: #000;
+        }
+
+        .stats-card {
+            background-color: var(--container-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            margin-top: 0.5rem;
+        }
+
+        .error-message {
+            color: var(--error-color);
+            background-color: rgba(231, 76, 60, 0.1);
+            border: 1px solid var(--error-color);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+        
+        .actions {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>YOLOv8 Smoke & Fire Detection</h1>
+    <p class="subtitle">Upload a video to detect smoke (purple) and fire (orange)</p>
+
+    <div class="upload-container" id="drop-zone">
+        <div class="upload-icon">📁</div>
+        <h3>Drag & Drop video here</h3>
+        <p>or</p>
+        <button class="btn" onclick="document.getElementById('file-input').click()">Browse Files</button>
+        <input type="file" id="file-input" accept="video/mp4,video/x-m4v,video/*">
+        <p style="font-size: 0.8rem; color: #888; margin-top: 1rem;">Supports MP4, AVI, MOV</p>
+    </div>
+
+    <div class="error-message" id="error-message"></div>
+
+    <div class="progress-container" id="progress-container">
+        <div class="status-text">
+            <span id="status-label"><span class="spinner" id="spinner"></span> <span id="status-text">Uploading...</span></span>
+            <span id="progress-percent">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="results-container" id="results-container">
+        <div class="videos-wrapper">
+            <div class="video-box">
+                <h3>Original Video</h3>
+                <video id="original-video" controls></video>
+            </div>
+            <div class="video-box">
+                <h3>Processed Video</h3>
+                <video id="processed-video" controls></video>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <div class="stat-item">
+                <div class="stat-value" id="stat-frames">0</div>
+                <div class="stat-label">Frames Processed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-time">0s</div>
+                <div class="stat-label">Inference Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-fps">0</div>
+                <div class="stat-label">Average FPS</div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="#" class="btn" id="download-btn" download>Download Processed Video</a>
+            <button class="btn" style="background-color: #555; margin-left: 1rem;" onclick="resetUI()">Process Another</button>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const progressContainer = document.getElementById('progress-container');
+        const progressFill = document.getElementById('progress-fill');
+        const progressPercent = document.getElementById('progress-percent');
+        const statusText = document.getElementById('status-text');
+        const spinner = document.getElementById('spinner');
+        const errorMessage = document.getElementById('error-message');
+        const resultsContainer = document.getElementById('results-container');
+        const originalVideo = document.getElementById('original-video');
+        const processedVideo = document.getElementById('processed-video');
+        
+        // Backend URL (assumes running on localhost:8000)
+        const BACKEND_URL = 'http://localhost:8000';
+
+        // Drag and drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight() {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', function() {
+            if (this.files.length) handleFiles(this.files);
+        });
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            const file = files[0];
+            
+            // Check file type
+            if (!file.type.match('video.*') && !file.name.match(/\.(mp4|avi|mov)$/i)) {
+                showError('Please upload a valid video file (MP4, AVI, MOV).');
+                return;
+            }
+
+            hideError();
+            
+            // Set up original video player
+            const fileURL = URL.createObjectURL(file);
+            originalVideo.src = fileURL;
+
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            // UI transitions
+            dropZone.style.display = 'none';
+            resultsContainer.style.display = 'none';
+            progressContainer.style.display = 'block';
+            
+            statusText.textContent = 'Uploading...';
+            spinner.style.display = 'inline-block';
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${BACKEND_URL}/upload`, true);
+
+            // Upload progress
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    // Max upload progress shown as 50% (rest is processing)
+                    const displayPercent = Math.round(percentComplete * 0.5);
+                    progressFill.style.width = displayPercent + '%';
+                    progressPercent.textContent = displayPercent + '%';
+                    
+                    if (percentComplete === 100) {
+                        statusText.textContent = 'Processing... (This may take a while)';
+                        // Fake progress for processing
+                        simulateProcessingProgress();
+                    }
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        handleSuccess(response);
+                    } catch (e) {
+                        showError('Invalid response from server.');
+                        resetUIOnFail();
+                    }
+                } else {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        showError(response.detail || 'An error occurred during upload/processing.');
+                    } catch(e) {
+                        showError(`Server error: ${xhr.status}`);
+                    }
+                    resetUIOnFail();
+                }
+            };
+
+            xhr.onerror = function() {
+                showError('Network error. Is the backend running?');
+                resetUIOnFail();
+            };
+
+            xhr.send(formData);
+        }
+
+        let processingInterval;
+        function simulateProcessingProgress() {
+            let current = 50;
+            processingInterval = setInterval(() => {
+                if (current < 95) {
+                    current += Math.random() * 2;
+                    if (current > 95) current = 95;
+                    progressFill.style.width = current + '%';
+                    progressPercent.textContent = Math.round(current) + '%';
+                }
+            }, 1000);
+        }
+
+        function handleSuccess(data) {
+            clearInterval(processingInterval);
+            
+            progressFill.style.width = '100%';
+            progressPercent.textContent = '100%';
+            statusText.textContent = 'Done!';
+            spinner.style.display = 'none';
+
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                resultsContainer.style.display = 'block';
+                
+                // Set processed video
+                const videoUrl = `${BACKEND_URL}${data.download_url}`;
+                processedVideo.src = videoUrl;
+                
+                // Setup download button
+                const downloadBtn = document.getElementById('download-btn');
+                downloadBtn.href = videoUrl;
+                
+                // Update stats
+                document.getElementById('stat-frames').textContent = data.frames_processed;
+                document.getElementById('stat-time').textContent = data.inference_time_seconds + 's';
+                
+                const fps = data.inference_time_seconds > 0 
+                    ? Math.round(data.frames_processed / data.inference_time_seconds) 
+                    : 0;
+                document.getElementById('stat-fps').textContent = fps;
+                
+            }, 500);
+        }
+
+        function showError(msg) {
+            errorMessage.textContent = msg;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        function resetUIOnFail() {
+            clearInterval(processingInterval);
+            progressContainer.style.display = 'none';
+            dropZone.style.display = 'block';
+            fileInput.value = '';
+        }
+
+        function resetUI() {
+            resultsContainer.style.display = 'none';
+            dropZone.style.display = 'block';
+            fileInput.value = '';
+            originalVideo.src = '';
+            processedVideo.src = '';
+            hideError();
+        }
+    </script>
+</body>
+</html>
